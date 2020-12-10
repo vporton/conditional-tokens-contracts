@@ -384,7 +384,7 @@ contract BidOnAddresses is ERC1155, IERC1155TokenReceiver {
         return uint256(keccak256(abi.encodePacked(uint8(TokenKind.TOKEN_STAKED), collateralContractAddress, collateralTokenId, marketId, oracleId)));
     }
 
-    function _checkTransferAllowed(uint256 id, address from) internal view returns (bool) {
+    function _checkTransferAllowed(uint256 id, address from) internal view {
         require(!userUsedRedeemMap[from][id], "You can't trade conditional tokens after redeem.");
     }
 
