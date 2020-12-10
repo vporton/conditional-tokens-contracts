@@ -3,7 +3,7 @@ pragma solidity ^0.7.1;
 import "./Salary.sol";
 import "restorable-funds/contracts/ERC1155WithMappedAddresses.sol";
 
-contract RestrableSalary is Salary {
+contract RestorableSalary is Salary {
     mapping(address => address) public newToOldAccount; // mapping from old to new account addresses
 
     // TODO: Setting uri happens two times.
