@@ -1,4 +1,4 @@
-pragma solidity ^0.5.1;
+pragma solidity ^0.7.1;
 import "abdk-libraries-solidity/ABDKMath64x64.sol";
 import { ERC1155WithMappedAddresses } from "restorable-funds/contracts/ERC1155WithMappedAddresses.sol";
 import { IERC1155TokenReceiver } from "./ERC1155/IERC1155TokenReceiver.sol";
