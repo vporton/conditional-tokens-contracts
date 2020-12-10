@@ -44,7 +44,6 @@ contract BidOnAddresses is BaseBidOnAddresses {
         return conditionalTokensMap[tokenId];
     }
 
-    // FIXME: conditon address or condtional token?
     function marketTotal(address /*condition*/) public virtual override view returns (uint256) {
         return INITIAL_CUSTOMER_BALANCE;
     }

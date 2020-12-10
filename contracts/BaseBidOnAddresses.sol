@@ -338,7 +338,6 @@ abstract contract BaseBidOnAddresses is ERC1155WithMappedAddresses, IERC1155Toke
         return userUsedRedeemMap[condition][conditionalTokenId];
     }
 
-    // FIXME: conditon address or condtional token?
     function marketTotal(address /*condition*/) public virtual view returns (uint256);
 
     // Internal //

@@ -16,8 +16,10 @@ contract Salary is BaseBidOnAddresses {
         bytes data
     );
 
+    mapping(address => uint256) public marketTotals;
+
     // Mapping from original address to last salary block time.
-    mapping(address => uint) lastSalaryDates;
+    mapping(address => uint) public lastSalaryDates;
 
     constructor(string memory uri_) BaseBidOnAddresses(uri_) {
     }
@@ -25,7 +27,6 @@ contract Salary is BaseBidOnAddresses {
     /// Anyone can register himself.
     /// Can be called both before or after the oracle finish. However registering after the finish is useless.
     function registerCustomer(uint64 marketId, bytes calldata data) external {
-        uint256 conditionalTokenId = _conditionalTokenId(marketId, msg.sender);
         address orig = originalAddress(msg.sender);
         require(lastSalaryDates[orig] == 0, "You are already registered.");
         lastSalaryDates[orig] = block.timestamp;
@@ -36,15 +37,15 @@ contract Salary is BaseBidOnAddresses {
         address orig = originalAddress(msg.sender);
         uint lastSalaryDate = lastSalaryDates[orig];
         require(lastSalaryDate != 0, "You are not registered.");
-        uint256 conditionalTokenId = _conditionalTokenId(marketId, msg.sender);
+        uint256 conditionalTokenId = _conditionalTokenId(marketId, originalAddress(msg.sender));
         uint256 amount = (lastSalaryDate - block.timestamp) * 10**18; // one token per second
         _mint(msg.sender, conditionalTokenId, amount, data);
+        marketTotals[orig] += amount; // Overflow is impossible.
         lastSalaryDates[orig] = block.timestamp;
         emit SalaryMinted(msg.sender, marketId, amount, data);
     }
 
-    // FIXME: conditon address or condtional token?
-    function marketTotal(address /*condition*/) public virtual override view returns (uint256) {
-        return INITIAL_CUSTOMER_BALANCE;
+    function marketTotal(address condition) public virtual override view returns (uint256) {
+        return marketTotals[condition];
     }
 }
