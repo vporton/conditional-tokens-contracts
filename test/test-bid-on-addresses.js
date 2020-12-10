@@ -5,7 +5,7 @@ const { toBN } = web3.utils;
 const {
   INITIAL_CUSTOMER_BALANCE,
   conditionalTokenId
-} = require("../utils/manyid-helpers")(web3.utils);
+} = require("../utils/bin-on-addresses-helpers")(web3.utils);
 
 const BidOnAddresses = artifacts.require("BidOnAddresses");
 const ERC1155Mintable = artifacts.require("ERC1155Mock");
@@ -184,6 +184,7 @@ contract("BidOnAddresses", function(accounts) {
               product.marketId,
               oracleIdInfo.oracleId,
               donor.amount,
+              donor.account,
               [],
               { from: donor.account }
             );
@@ -201,6 +202,7 @@ contract("BidOnAddresses", function(accounts) {
               product.marketId,
               oracleIdInfo.oracleId,
               staker.amount,
+              staker.account,
               [],
               { from: staker.account }
             );
