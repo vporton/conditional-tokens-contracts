@@ -1,6 +1,6 @@
 pragma solidity ^0.5.1;
 import "abdk-libraries-solidity/ABDKMath64x64.sol";
-import { IERC1155 } from "./ERC1155/IERC1155.sol";
+import { ERC1155WithMappedAddresses } from "restorable-funds/contracts/ERC1155WithMappedAddresses.sol";
 import { IERC1155TokenReceiver } from "./ERC1155/IERC1155TokenReceiver.sol";
 import { ERC1155 } from "./ERC1155/ERC1155.sol";
 
@@ -15,7 +15,7 @@ import { ERC1155 } from "./ERC1155/ERC1155.sol";
 /// - a combination of market ID, collateral address, and customer address (conditional tokens)
 /// - a combination of TOKEN_STAKED and collateral address (staked collateral tokens)
 /// - a combination of TOKEN_SUMMARY and collateral address (staked + staked collateral tokens)
-contract BidOnAddresses is ERC1155, IERC1155TokenReceiver {
+contract BidOnAddresses is ERC1155WithMappedAddresses, IERC1155TokenReceiver {
     using ABDKMath64x64 for int128;
 
     enum TokenKind { TOKEN_CONDITIONAL, TOKEN_DONATED, TOKEN_STAKED }
