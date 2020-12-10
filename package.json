@@ -27,7 +27,7 @@
   "dependencies": {
     "@gnosis.pm/safe-contracts": "git+ssh://git@github.com/vporton/safe-contracts#solidity-0.7",
     "abdk-libraries-solidity": "^2.4.0",
-    "restorable-funds": "git+ssh://git@github.com/vporton/restorable-funds.git"
+    "restorable-funds": "git+ssh://git@github.com/vporton/restorable-funds"
   },
   "devDependencies": {
     "@codechecks/client": "^0.1.9",
