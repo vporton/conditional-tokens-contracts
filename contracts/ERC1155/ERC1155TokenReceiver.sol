@@ -2,7 +2,7 @@
 pragma solidity ^0.7.1;
 
 import "./IERC1155TokenReceiver.sol";
-import "openzeppelin-solidity/contracts/introspection/ERC165.sol";
+import "@openzeppelin/contracts/introspection/ERC165.sol";
 
 abstract contract ERC1155TokenReceiver is ERC165, IERC1155TokenReceiver {
     constructor() {

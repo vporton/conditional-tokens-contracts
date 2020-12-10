@@ -1,8 +1,10 @@
+// SPDX-License-Identifier: LGPL-3.0-or-later
 pragma solidity ^0.7.1;
+import "@openzeppelin/contracts/math/SafeMath.sol";
 import "abdk-libraries-solidity/ABDKMath64x64.sol";
 import { ERC1155WithMappedAddresses } from "restorable-funds/contracts/ERC1155WithMappedAddresses.sol";
 import { IERC1155TokenReceiver } from "./ERC1155/IERC1155TokenReceiver.sol";
-import { ERC1155 } from "./ERC1155/ERC1155.sol";
+import { IERC1155 } from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 
 // TODO: Token URL setting.
 /// @title Bidding on Ethereum addresses
@@ -15,8 +17,11 @@ import { ERC1155 } from "./ERC1155/ERC1155.sol";
 /// - a combination of market ID, collateral address, and customer address (conditional tokens)
 /// - a combination of TOKEN_STAKED and collateral address (staked collateral tokens)
 /// - a combination of TOKEN_SUMMARY and collateral address (staked + staked collateral tokens)
+///
+/// In functions of this contact `condition` is always a customer's original address.
 contract BidOnAddresses is ERC1155WithMappedAddresses, IERC1155TokenReceiver {
     using ABDKMath64x64 for int128;
+    using SafeMath for uint256;
 
     enum TokenKind { TOKEN_CONDITIONAL, TOKEN_DONATED, TOKEN_STAKED }
 
@@ -102,24 +107,24 @@ contract BidOnAddresses is ERC1155WithMappedAddresses, IERC1155TokenReceiver {
     
     uint64 private maxId;
 
-    /// Mapping from oracleId to oracle owner.
+    // Mapping from oracleId to oracle owner.
     mapping(uint64 => address) private oracleOwnersMap;
-    /// Whether an oracle finished its work.
+    // Whether an oracle finished its work.
     mapping(uint64 => bool) private oracleFinishedMap;
-    /// Mapping (marketId => (customer => numerator)) for payout numerators.
+    // Mapping (marketId => (customer => numerator)) for payout numerators.
     mapping(uint64 => mapping(address => uint256)) private payoutNumeratorsMap;
-    /// Mapping (marketId => denominator) for payout denominators.
+    // Mapping (marketId => denominator) for payout denominators.
     mapping(uint64 => uint) private payoutDenominatorMap;
-    /// All conditional tokens,
+    // All conditional tokens,
     mapping(uint256 => bool) private conditionalTokensMap;
-    /// Total collaterals (separately donated and staked) per marketId and oracleId: collateral => (marketId => (oracleId => total)).
+    // Total collaterals (separately donated and staked) per marketId and oracleId: collateral => (marketId => (oracleId => total)).
     mapping(uint256 => uint256) private collateralTotalsMap;
-    /// If a given conditional was already redeemed.
+    // If a given conditional was already redeemed.
     mapping(address => mapping(uint64 => mapping(uint256 => bool))) private redeemActivatedMap; // TODO: hash instead?
-    /// The user lost the right to transfer conditional tokens: (user => (conditionalToken => bool)).
+    // The user lost the right to transfer conditional tokens: (user => (conditionalToken => bool)).
     mapping(address => mapping(uint256 => bool)) private userUsedRedeemMap;
 
-    constructor() public {
+    constructor(string memory uri_) ERC1155WithMappedAddresses(uri_) {
         _registerInterface(
             BidOnAddresses(0).onERC1155Received.selector ^
             BidOnAddresses(0).onERC1155BatchReceived.selector
@@ -227,11 +232,11 @@ contract BidOnAddresses is ERC1155WithMappedAddresses, IERC1155TokenReceiver {
     }
 
     /// @dev Called by the oracle owner for reporting results of conditions.
-    function reportNumerator(uint64 oracleId, address customer, uint256 numerator) external
+    function reportNumerator(uint64 oracleId, address condition, uint256 numerator) external
         _isOracle(oracleId)
     {
-        _updateNumerator(oracleId, numerator, customer);
-        emit ReportedNumerator(oracleId, customer, numerator);
+        _updateNumerator(oracleId, numerator, condition);
+        emit ReportedNumerator(oracleId, condition, numerator);
     }
 
     /// @dev Called by the oracle owner for reporting results of conditions.
@@ -261,9 +266,10 @@ contract BidOnAddresses is ERC1155WithMappedAddresses, IERC1155TokenReceiver {
         require(oracleFinishedMap[oracleId], "too early"); // to prevent the denominator or the numerators change meantime
         uint256 collateralBalance = _initialCollateralBalanceOf(collateralContractAddress, collateralTokenId, marketId, oracleId, msg.sender, condition);
         uint256 conditionalTokenId = _conditionalTokenId(marketId, condition);
-        require(!redeemActivatedMap[msg.sender][oracleId][conditionalTokenId], "Already redeemed.");
-        redeemActivatedMap[msg.sender][oracleId][conditionalTokenId] = true;
-        userUsedRedeemMap[msg.sender][conditionalTokenId] = true;
+        address _originalAddress = originalAddress(msg.sender);
+        require(!redeemActivatedMap[_originalAddress][oracleId][conditionalTokenId], "Already redeemed.");
+        redeemActivatedMap[_originalAddress][oracleId][conditionalTokenId] = true;
+        userUsedRedeemMap[_originalAddress][conditionalTokenId] = true;
         // _burn(msg.sender, conditionalTokenId, conditionalBalance); // Burning it would break using the same token for multiple outcomes.
         collateralContractAddress.safeTransferFrom(address(this), to, collateralTokenId, collateralBalance, data); // last to prevent reentrancy attack
     }
@@ -283,7 +289,7 @@ contract BidOnAddresses is ERC1155WithMappedAddresses, IERC1155TokenReceiver {
         uint256 value,
         bytes calldata data
     )
-        external
+        public override
     {
         _checkTransferAllowed(id, from);
         _baseSafeTransferFrom(from, to, id, value, data);
@@ -297,7 +303,7 @@ contract BidOnAddresses is ERC1155WithMappedAddresses, IERC1155TokenReceiver {
         uint256[] calldata values,
         bytes calldata data
     )
-        external
+        public override
     {
         for(uint i = 0; i < ids.length; ++i) {
             _checkTransferAllowed(ids[i], from);
@@ -305,11 +311,11 @@ contract BidOnAddresses is ERC1155WithMappedAddresses, IERC1155TokenReceiver {
         _baseSafeBatchTransferFrom(from, to, ids, values, data);
     }
 
-    function onERC1155Received(address, address, uint256, uint256, bytes calldata) external returns(bytes4) {
+    function onERC1155Received(address, address, uint256, uint256, bytes calldata) public override returns(bytes4) {
         return this.onERC1155Received.selector; // to accept transfers
     }
 
-    function onERC1155BatchReceived(address, address, uint256[] calldata, uint256[] calldata, bytes calldata) external returns(bytes4) {
+    function onERC1155BatchReceived(address, address, uint256[] calldata, uint256[] calldata, bytes calldata) public override returns(bytes4) {
         return bytes4(0); // We should never receive batch transfers.
     }
 
@@ -331,8 +337,8 @@ contract BidOnAddresses is ERC1155WithMappedAddresses, IERC1155TokenReceiver {
         return oracleFinishedMap[oracleId];
     }
 
-    function payoutNumerator(uint64 marketId, address customer) public view returns (uint256) {
-        return payoutNumeratorsMap[marketId][customer];
+    function payoutNumerator(uint64 marketId, address condition) public view returns (uint256) {
+        return payoutNumeratorsMap[marketId][condition];
     }
 
     function payoutDenominator(uint64 marketId) public view returns (uint256) {
@@ -348,12 +354,12 @@ contract BidOnAddresses is ERC1155WithMappedAddresses, IERC1155TokenReceiver {
         return collateralTotalsMap[hash];
     }
 
-    function isRedeemActivated(address holder, uint64 oracleId, uint256 conditionalTokenId) public view returns (bool) {
-        return redeemActivatedMap[holder][oracleId][conditionalTokenId];
+    function isRedeemActivated(address condition, uint64 oracleId, uint256 conditionalTokenId) public view returns (bool) {
+        return redeemActivatedMap[condition][oracleId][conditionalTokenId];
     }
 
-    function isConditonalLocked(address holder, uint256 conditionalTokenId) public view returns (bool) {
-        return userUsedRedeemMap[holder][conditionalTokenId];
+    function isConditonalLocked(address condition, uint256 conditionalTokenId) public view returns (bool) {
+        return userUsedRedeemMap[condition][conditionalTokenId];
     }
 
     // Internal //
@@ -385,8 +391,8 @@ contract BidOnAddresses is ERC1155WithMappedAddresses, IERC1155TokenReceiver {
         return uint256(keccak256(abi.encodePacked(uint8(TokenKind.TOKEN_STAKED), collateralContractAddress, collateralTokenId, marketId, oracleId)));
     }
 
-    function _checkTransferAllowed(uint256 id, address from) internal view returns (bool) {
-        require(!userUsedRedeemMap[from][id], "You can't trade conditional tokens after redeem.");
+    function _checkTransferAllowed(uint256 id, address from) internal view {
+        require(!userUsedRedeemMap[originalAddress(from)][id], "You can't trade conditional tokens after redeem.");
     }
 
     function _baseSafeTransferFrom(
@@ -404,8 +410,11 @@ contract BidOnAddresses is ERC1155WithMappedAddresses, IERC1155TokenReceiver {
             "ERC1155: need operator approval for 3rd party transfers."
         );
 
-        _balances[id][from] = _balances[id][from].sub(value);
-        _balances[id][to] = value.add(_balances[id][to]);
+        // TODO: duplicateCode
+        address originalFrom = originalAddress(from);
+        _balances[id][originalFrom] = _balances[id][originalFrom].sub(value);
+        address originalTo = originalAddress(to);
+        _balances[id][originalTo] = value.add(_balances[id][originalTo]);
 
         emit TransferSingle(msg.sender, from, to, id, value);
 
@@ -432,8 +441,11 @@ contract BidOnAddresses is ERC1155WithMappedAddresses, IERC1155TokenReceiver {
             uint256 id = ids[i];
             uint256 value = values[i];
 
-            _balances[id][from] = _balances[id][from].sub(value);
-            _balances[id][to] = value.add(_balances[id][to]);
+            // TODO: duplicateCode
+            address originalFrom = originalAddress(from);
+            _balances[id][originalFrom] = _balances[id][originalFrom].sub(value);
+            address originalTo = originalAddress(to);
+            _balances[id][originalTo] = value.add(_balances[id][originalTo]);
         }
 
         emit TransferBatch(msg.sender, from, to, ids, values);
@@ -441,9 +453,9 @@ contract BidOnAddresses is ERC1155WithMappedAddresses, IERC1155TokenReceiver {
         _doSafeBatchTransferAcceptanceCheck(msg.sender, from, to, ids, values, data);
     }
 
-    function _updateNumerator(uint64 oracleId, uint256 numerator, address customer) private {
-        payoutDenominatorMap[oracleId] = payoutDenominatorMap[oracleId].add(numerator).sub(payoutNumeratorsMap[oracleId][customer]);
-        payoutNumeratorsMap[oracleId][customer] = numerator;
+    function _updateNumerator(uint64 oracleId, uint256 numerator, address condition) private {
+        payoutDenominatorMap[oracleId] = payoutDenominatorMap[oracleId].add(numerator).sub(payoutNumeratorsMap[oracleId][condition]);
+        payoutNumeratorsMap[oracleId][condition] = numerator;
     }
 
     modifier _isOracle(uint64 oracleId) {
