@@ -33,7 +33,7 @@ contract BidOnAddresses is BaseBidOnAddresses {
     /// Anyone can register himself.
     /// Can be called both before or after the oracle finish. However registering after the finish is useless.
     function registerCustomer(uint64 marketId, bytes calldata data) external {
-        uint256 conditionalTokenId = _conditionalTokenId(marketId, msg.sender);
+        uint256 conditionalTokenId = _conditionalTokenId(marketId, originalAddress(msg.sender));
         require(!conditionalTokensMap[conditionalTokenId], "customer already registered");
         conditionalTokensMap[conditionalTokenId] = true;
         _mint(msg.sender, conditionalTokenId, INITIAL_CUSTOMER_BALANCE, data);
