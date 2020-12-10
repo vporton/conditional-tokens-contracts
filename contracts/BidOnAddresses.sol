@@ -18,6 +18,12 @@ import "./BaseBidOnAddresses.sol";
 contract BidOnAddresses is BaseBidOnAddresses {
     uint constant INITIAL_CUSTOMER_BALANCE = 1000 * 10**18; // an arbitrarily choosen value
 
+    event CustomerRegistered(
+        address customer,
+        uint64 marketId,
+        bytes data
+    );
+
     // All conditional tokens,
     mapping(uint256 => bool) private conditionalTokensMap;
 

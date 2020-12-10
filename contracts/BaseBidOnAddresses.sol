@@ -29,12 +29,6 @@ abstract contract BaseBidOnAddresses is ERC1155WithMappedAddresses, IERC1155Toke
 
     event OracleCreated(address oracleOwner, uint64 oracleId);
 
-    event CustomerRegistered(
-        address customer,
-        uint64 marketId,
-        bytes data
-    );
-
     event DonateCollateral(
         IERC1155 collateralContractAddress,
         uint256 collateralTokenId,
