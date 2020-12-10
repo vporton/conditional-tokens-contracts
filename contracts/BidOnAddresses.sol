@@ -311,11 +311,11 @@ contract BidOnAddresses is ERC1155WithMappedAddresses, IERC1155TokenReceiver {
         _baseSafeBatchTransferFrom(from, to, ids, values, data);
     }
 
-    function onERC1155Received(address, address, uint256, uint256, bytes calldata) public override returns(bytes4) {
+    function onERC1155Received(address, address, uint256, uint256, bytes calldata) public pure override returns(bytes4) {
         return this.onERC1155Received.selector; // to accept transfers
     }
 
-    function onERC1155BatchReceived(address, address, uint256[] calldata, uint256[] calldata, bytes calldata) public override returns(bytes4) {
+    function onERC1155BatchReceived(address, address, uint256[] calldata, uint256[] calldata, bytes calldata) public pure override returns(bytes4) {
         return bytes4(0); // We should never receive batch transfers.
     }
 
