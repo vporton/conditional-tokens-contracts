@@ -21,6 +21,7 @@ import { IERC1155 } from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 /// In functions of this contact `condition` is always a customer's original address.
 abstract contract BaseBidOnAddresses is ERC1155WithMappedAddresses, IERC1155TokenReceiver {
     // TODO: IERC1155Views
+    // TODO: Allocate also kX tokens to the DAO.
 
     using ABDKMath64x64 for int128;
     using SafeMath for uint256;
