@@ -7175,7 +7175,7 @@ responselike@^1.0.2:
 
 "restorable-funds@git+ssh://git@github.com/vporton/restorable-funds.git":
   version "0.0.1"
-  resolved "git+ssh://git@github.com/vporton/restorable-funds.git#14f49f1bdd7eb50d3412d13b7c19e8056e46cde4"
+  resolved "git+ssh://git@github.com/vporton/restorable-funds.git#eabdf85b31dbe9a9c5d63bf29b8e316a0e81c230"
   dependencies:
     "@openzeppelin/contracts" "^3.3.0"
     hardhat "^2.0.5"

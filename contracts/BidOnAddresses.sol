@@ -258,15 +258,16 @@ contract BidOnAddresses is ERC1155WithMappedAddresses, IERC1155TokenReceiver {
         emit OracleFinished(msg.sender);
     }
 
-    /// Transfer to `msg.sender` the collateral ERC-20 token
+    /// Transfer to `to` the collateral ERC-20 token
     /// accordingly to the score of `condition` in the marketId by the oracle.
-    /// After this function is called, it becomes impossible to transfer the corresponding conditional token of `msg.sender`
+    /// After this function is called, it becomes impossible to transfer the corresponding conditional token of `to`
     /// (to prevent its repeated withdraw).
+    /// Note that this can be called by anybody (for anybody)! That's useful for multi-level withdrawals through a submarket.
     function withdrawCollateral(IERC1155 collateralContractAddress, uint256 collateralTokenId, uint64 marketId, uint64 oracleId, address to, address condition, bytes calldata data) external {
         require(oracleFinishedMap[oracleId], "too early"); // to prevent the denominator or the numerators change meantime
-        uint256 collateralBalance = _initialCollateralBalanceOf(collateralContractAddress, collateralTokenId, marketId, oracleId, msg.sender, condition);
+        uint256 collateralBalance = _initialCollateralBalanceOf(collateralContractAddress, collateralTokenId, marketId, oracleId, to, condition);
         uint256 conditionalTokenId = _conditionalTokenId(marketId, condition);
-        address _originalAddress = originalAddress(msg.sender);
+        address _originalAddress = originalAddress(to);
         require(!redeemActivatedMap[_originalAddress][oracleId][conditionalTokenId], "Already redeemed.");
         redeemActivatedMap[_originalAddress][oracleId][conditionalTokenId] = true;
         userUsedRedeemMap[_originalAddress][conditionalTokenId] = true;
