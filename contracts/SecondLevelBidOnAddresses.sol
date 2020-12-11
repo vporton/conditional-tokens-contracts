@@ -9,8 +9,9 @@ contract SecondLevelBidOnAddresses is BidOnAddresses {
         parent = parent_;
     }
 
-    // For each collateral needs to be called only once, called again it reverts.
-    // Anyone can call this.
+    /// For each collateral needs to be called only once, called again it reverts.
+    /// Anyone can call this.
+    /// TODO: This becomes not needed at all, if we allow anyone to withdraw for others.
     function withdrawParentCollateral(
         IERC1155 collateralContractAddress,
         uint256 collateralTokenId,
