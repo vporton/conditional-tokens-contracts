@@ -22,6 +22,7 @@ import { IERC1155 } from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 abstract contract BaseBidOnAddresses is ERC1155WithMappedAddresses, IERC1155TokenReceiver {
     // TODO: IERC1155Views
     // TODO: Allocate also kX tokens to the DAO.
+    // TODO: Does it make sense to be able to change the amount of salary per second?
 
     using ABDKMath64x64 for int128;
     using SafeMath for uint256;
