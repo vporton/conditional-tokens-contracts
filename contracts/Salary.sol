@@ -16,7 +16,7 @@ contract Salary is BaseBidOnAddresses {
         bytes data
     );
 
-    mapping(address => uint256) public marketTotals;
+    mapping(address => uint256) internal marketTotals;
 
     // Mapping from original address to last salary block time.
     mapping(address => uint) public lastSalaryDates;
