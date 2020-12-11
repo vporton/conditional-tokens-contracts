@@ -295,7 +295,6 @@ contract("BidOnAddresses", function(accounts) {
               product.marketId,
               oracleIdInfo.oracleId,
               account,
-              account,
               [],
               { from: account }
             );
@@ -314,7 +313,6 @@ contract("BidOnAddresses", function(accounts) {
                 this.collateralTokenId,
                 product.marketId,
                 oracleIdInfo.oracleId,
-                account,
                 account,
                 [],
                 { from: account }
