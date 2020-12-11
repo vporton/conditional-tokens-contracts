@@ -2,6 +2,7 @@
 pragma solidity ^0.7.1;
 import "./BaseBidOnAddresses.sol";
 
+// TODO: A mean to check if the salary receiver is dead.
 contract Salary is BaseBidOnAddresses {
     event CustomerRegistered(
         address customer,
