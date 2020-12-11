@@ -29,6 +29,8 @@ abstract contract BaseBidOnAddresses is ERC1155WithMappedAddresses, IERC1155Toke
 
     event OracleCreated(address oracleOwner, uint64 oracleId);
 
+    event OracleOwnerChanged(address oracleOwner, uint64 oracleId);
+
     event DonateCollateral(
         IERC1155 collateralContractAddress,
         uint256 collateralTokenId,
@@ -132,6 +134,11 @@ abstract contract BaseBidOnAddresses is ERC1155WithMappedAddresses, IERC1155Toke
         uint64 oracleId = maxId++;
         oracleOwnersMap[oracleId] = msg.sender;
         emit OracleCreated(msg.sender, oracleId);
+    }
+
+    function changeOracleOwner(address oracleOwner, uint64 oracleId) public _isOracle(oracleId) {
+        oracleOwnersMap[oracleId] = msg.sender;
+        emit OracleOwnerChanged(oracleOwner, oracleId);
     }
 
     /// Donate funds in a ERC1155 token.
