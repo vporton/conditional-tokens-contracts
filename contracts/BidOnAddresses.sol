@@ -145,6 +145,7 @@ contract BidOnAddresses is ERC1155WithMappedAddresses, IERC1155TokenReceiver {
         uint64 oracleId = maxId++;
         oracleOwnersMap[oracleId] = msg.sender;
         emit OracleCreated(msg.sender, oracleId);
+        emit OracleOwnerChanged(msg.sender, oracleId);
         return oracleId;
     }
 
