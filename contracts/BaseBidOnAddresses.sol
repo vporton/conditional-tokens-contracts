@@ -124,16 +124,19 @@ abstract contract BaseBidOnAddresses is ERC1155WithMappedAddresses, IERC1155Toke
     }
 
     /// Create a new conditional marketId
-    function createMarket() external {
+    function createMarket() external returns (uint64) {
         uint64 marketId = maxId++;
         emit MarketCreated(msg.sender, marketId);
+        return marketId;
     }
 
     /// Create a new oracle
-    function createOracle() external {
+    function createOracle() external returns (uint64) {
         uint64 oracleId = maxId++;
         oracleOwnersMap[oracleId] = msg.sender;
         emit OracleCreated(msg.sender, oracleId);
+        emit OracleOwnerChanged(msg.sender, oracleId);
+        return oracleId;
     }
 
     function changeOracleOwner(address oracleOwner, uint64 oracleId) public _isOracle(oracleId) {
