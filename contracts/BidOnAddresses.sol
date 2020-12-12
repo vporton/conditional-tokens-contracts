@@ -2,8 +2,6 @@
 pragma solidity ^0.7.1;
 import "./BaseBidOnAddresses.sol";
 
-// TODO: Move to another Ethereum account without a confirmation, using the old account.
-
 // TODO: Token URL setting.
 
 /// @title Bidding on Ethereum addresses
