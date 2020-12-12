@@ -7,6 +7,7 @@ import { IERC1155TokenReceiver } from "./ERC1155/IERC1155TokenReceiver.sol";
 import { IERC1155 } from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 
 // TODO: Allow to lock staked tokens? (as a separate contract?)
+// TODO: Move to another Ethereum account without a confirmation, using the old account.
 
 // TODO: Token URL setting.
 
