@@ -15,7 +15,6 @@ import "./BaseBidOnAddresses.sol";
 ///
 /// In functions of this contact `condition` is always a customer's original address.
 contract BidOnAddresses is BaseBidOnAddresses {
-    // TODO: IERC1155Views
     using ABDKMath64x64 for int128;
     using SafeMath for uint256;
 
