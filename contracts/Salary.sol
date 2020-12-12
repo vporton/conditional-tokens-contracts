@@ -16,8 +16,6 @@ contract Salary is BaseBidOnAddresses {
         bytes data
     );
 
-    mapping(address => uint256) internal marketTotals;
-
     // Mapping from original address to last salary block time.
     mapping(address => uint) public lastSalaryDates;
 
@@ -40,12 +38,7 @@ contract Salary is BaseBidOnAddresses {
         uint256 conditionalTokenId = _conditionalTokenId(marketId, originalAddress(msg.sender));
         uint256 amount = (lastSalaryDate - block.timestamp) * 10**18; // one token per second
         _mintToCustomer(conditionalTokenId, amount, data);
-        marketTotals[orig] += amount; // Overflow is impossible.
         lastSalaryDates[orig] = block.timestamp;
         emit SalaryMinted(msg.sender, marketId, amount, data);
-    }
-
-    function marketTotal(address condition) public virtual override view returns (uint256) {
-        return marketTotals[condition];
     }
 }

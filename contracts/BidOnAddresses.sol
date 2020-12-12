@@ -45,12 +45,4 @@ contract BidOnAddresses is BaseBidOnAddresses {
         _mintToCustomer(conditionalTokenId, INITIAL_CUSTOMER_BALANCE, data);
         emit CustomerRegistered(msg.sender, marketId, data);
     }
-
-    function isConditionalToken(uint256 tokenId) public view returns (bool) {
-        return conditionalTokensMap[tokenId];
-    }
-
-    function marketTotal(address /*condition*/) public virtual override view returns (uint256) {
-        return INITIAL_CUSTOMER_BALANCE;
-    }
 }
