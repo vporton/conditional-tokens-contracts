@@ -6,7 +6,12 @@ import { ERC1155WithMappedAddresses } from "restorable-funds/contracts/ERC1155Wi
 import { IERC1155TokenReceiver } from "./ERC1155/IERC1155TokenReceiver.sol";
 import { IERC1155 } from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 
+// TODO: Allocate to oracles a portion of the conditional token and/or collateral, rather than the collateral.
+// TODO: Allow to lock staked tokens? (as a separate contract?)
+// TODO: Move to another Ethereum account without a confirmation, using the old account.
+
 // TODO: Token URL setting.
+
 /// @title Bidding on Ethereum addresses
 /// @author Victor Porton
 /// @notice Not audited, not enough tested.
@@ -20,6 +25,9 @@ import { IERC1155 } from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 ///
 /// In functions of this contact `condition` is always a customer's original address.
 contract BidOnAddresses is ERC1155WithMappedAddresses, IERC1155TokenReceiver {
+    // TODO: IERC1155Views
+    // TODO: Allocate also kX tokens to the DAO.
+
     using ABDKMath64x64 for int128;
     using SafeMath for uint256;
 
@@ -111,6 +119,8 @@ contract BidOnAddresses is ERC1155WithMappedAddresses, IERC1155TokenReceiver {
 
     // Mapping from oracleId to oracle owner.
     mapping(uint64 => address) private oracleOwnersMap;
+    // Mapping (oracleId => time) the least allowed time of oracles to finish.
+    mapping(uint64 => uint) private minFinishTimes;
     // Whether an oracle finished its work.
     mapping(uint64 => bool) private oracleFinishedMap;
     // Mapping (marketId => (customer => numerator)) for payout numerators.
@@ -152,6 +162,11 @@ contract BidOnAddresses is ERC1155WithMappedAddresses, IERC1155TokenReceiver {
     function changeOracleOwner(address newOracleOwner, uint64 oracleId) public _isOracle(oracleId) {
         oracleOwnersMap[oracleId] = newOracleOwner;
         emit OracleOwnerChanged(newOracleOwner, oracleId);
+    }
+
+    function updateMinFinishTime(uint64 oracleId, uint time) public _isOracle(oracleId) {
+        require(time >= minFinishTimes[oracleId], "Can't break trust of stakers.");
+        minFinishTimes[oracleId] = time;
     }
 
     /// Donate funds in a ERC1155 token.
@@ -203,7 +218,7 @@ contract BidOnAddresses is ERC1155WithMappedAddresses, IERC1155TokenReceiver {
         address to,
         bytes calldata data) external
     {
-        require(oracleFinishedMap[oracleId], "too late");
+        require(!isOracleFinished(oracleId), "too late");
         uint stakedCollateralTokenId = _collateralStakedTokenId(collateralContractAddress, collateralTokenId, marketId, oracleId);
         collateralTotalsMap[stakedCollateralTokenId] = collateralTotalsMap[stakedCollateralTokenId].sub(amount);
         collateralContractAddress.safeTransferFrom(address(this), to, stakedCollateralTokenId, amount, data);
@@ -273,7 +288,7 @@ contract BidOnAddresses is ERC1155WithMappedAddresses, IERC1155TokenReceiver {
     /// After this function is called, it becomes impossible to transfer the corresponding conditional token of `msg.sender`
     /// (to prevent its repeated withdraw).
     function withdrawCollateral(IERC1155 collateralContractAddress, uint256 collateralTokenId, uint64 marketId, uint64 oracleId, address condition, bytes calldata data) external {
-        require(oracleFinishedMap[oracleId], "too early"); // to prevent the denominator or the numerators change meantime
+        require(isOracleFinished(oracleId), "too early"); // to prevent the denominator or the numerators change meantime
         uint256 collateralBalance = _initialCollateralBalanceOf(collateralContractAddress, collateralTokenId, marketId, oracleId, msg.sender, condition);
         uint256 conditionalTokenId = _conditionalTokenId(marketId, condition);
         require(!redeemActivatedMap[msg.sender][oracleId][conditionalTokenId], "Already redeemed.");
@@ -343,7 +358,7 @@ contract BidOnAddresses is ERC1155WithMappedAddresses, IERC1155TokenReceiver {
     }
 
     function isOracleFinished(uint64 oracleId) public view returns (bool) {
-        return oracleFinishedMap[oracleId];
+        return oracleFinishedMap[oracleId] && block.timestamp >= minFinishTimes[oracleId];
     }
 
     function payoutNumerator(uint64 marketId, address condition) public view returns (uint256) {
@@ -369,6 +384,10 @@ contract BidOnAddresses is ERC1155WithMappedAddresses, IERC1155TokenReceiver {
 
     function isConditonalLocked(address condition, uint256 conditionalTokenId) public view returns (bool) {
         return userUsedRedeemMap[condition][conditionalTokenId];
+    }
+
+    function minFinishTime(uint64 oracleId) public view returns (uint) {
+        minFinishTimes[oracleId];
     }
 
     // Internal //
