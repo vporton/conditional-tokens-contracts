@@ -6,7 +6,7 @@ interface OurDAO {
     function checkAllowedRestoreAccount(address oldAccount_, address newAccount_) external;
 }
 
-contract RestorableSalary is BaseRestorableSalary {
+contract SalaryWithDAO is BaseRestorableSalary {
     OurDAO dao;
 
     constructor(OurDAO _dao, string memory uri_) BaseRestorableSalary(uri_) {
@@ -18,7 +18,6 @@ contract RestorableSalary is BaseRestorableSalary {
     }
 
     /// Set the token URI.
-    /// This function is not in its proper place of inheritance, but here we have DAO, so we can just use it.
     function setURI(string memory newuri) public onlyDAO {
         _setURI(newuri);
     }
