@@ -2,7 +2,7 @@
 pragma solidity ^0.7.1;
 import "./BaseRestorableSalary.sol";
 
-interface OurDAO {
+interface DaoPlugin {
     /// Revert if the person is dead.
     /// @param account the current account (not the original account)
     /// TODO: Maybe better to use original account as the argument?
@@ -14,16 +14,16 @@ interface OurDAO {
 contract SalaryWithDAO is BaseRestorableSalary {
     using ABDKMath64x64 for int128;
 
-    OurDAO public dao;
+    DaoPlugin public daoPlugin;
 
     int128 public daoShare = int128(0).div(1); // zero by default
 
-    constructor(OurDAO _dao, string memory uri_) BaseRestorableSalary(uri_) {
-        dao = _dao;
+    constructor(DaoPlugin _daoPlugin, string memory uri_) BaseRestorableSalary(uri_) {
+        daoPlugin = _daoPlugin;
     }
 
-    function setDAO(OurDAO _dao) public onlyDAO {
-        dao = _dao;
+    function setDAO(DaoPlugin _daoPlugin) public onlyDAO {
+        daoPlugin = _daoPlugin;
     }
 
     /// Set the multiplier of tokens given to the DAO
@@ -38,19 +38,19 @@ contract SalaryWithDAO is BaseRestorableSalary {
     }
 
     function _mintToCustomer(uint256 conditionalTokenId, uint256 amount, bytes calldata data) internal virtual override {
-        dao.checkPersonDead(msg.sender);
+        daoPlugin.checkPersonDead(msg.sender);
         super._mintToCustomer(conditionalTokenId, amount, data);
         if (daoShare != int128(0).div(1)) { // Save gas.
-            _mint(address(dao), conditionalTokenId, daoShare.mulu(amount), data);
+            _mint(address(daoPlugin), conditionalTokenId, daoShare.mulu(amount), data);
         }
     }
 
     function checkAllowedRestoreAccount(address oldAccount_, address newAccount_) public virtual override {
-        dao.checkAllowedRestoreAccount(oldAccount_, newAccount_);
+        daoPlugin.checkAllowedRestoreAccount(oldAccount_, newAccount_);
     }
 
     modifier onlyDAO() {
-        require(msg.sender == address(dao), "Only DAO can do.");
+        require(msg.sender == address(daoPlugin), "Only DAO can do.");
         _;
     }
 }
