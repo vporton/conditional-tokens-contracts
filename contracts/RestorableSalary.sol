@@ -7,7 +7,22 @@ interface OurDAO {
 }
 
 contract RestorableSalary is BaseRestorableSalary {
+    OurDAO dao;
+
+    constructor(OurDAO _dao, string memory uri_) BaseRestorableSalary(uri_) {
+        dao = _dao;
+    }
+
+    function setDAO(OurDAO _dao) public onlyDAO {
+        dao = _dao;
+    }
+
     function checkAllowedRestoreAccount(address oldAccount_, address newAccount_) public virtual override {
         dao.checkAllowedRestoreAccount(oldAccount_, newAccount_);
+    }
+
+    modifier onlyDAO() {
+        require(msg.sender == address(dao)  , "Only DAO can do.");
+        _;
     }
 }
