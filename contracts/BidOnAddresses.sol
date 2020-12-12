@@ -2,7 +2,12 @@
 pragma solidity ^0.7.1;
 import "./BaseBidOnAddresses.sol";
 
+// TODO: Allocate to oracles a portion of the conditional token and/or collateral, rather than the collateral.
+// TODO: Allow to lock staked tokens? (as a separate contract?)
+// TODO: Move to another Ethereum account without a confirmation, using the old account.
+
 // TODO: Token URL setting.
+
 /// @title Bidding on Ethereum addresses
 /// @author Victor Porton
 /// @notice Not audited, not enough tested.
@@ -16,6 +21,12 @@ import "./BaseBidOnAddresses.sol";
 ///
 /// In functions of this contact `condition` is always a customer's original address.
 contract BidOnAddresses is BaseBidOnAddresses {
+    // TODO: IERC1155Views
+    // TODO: Allocate also kX tokens to the DAO.
+
+    using ABDKMath64x64 for int128;
+    using SafeMath for uint256;
+
     uint constant INITIAL_CUSTOMER_BALANCE = 1000 * 10**18; // an arbitrarily choosen value
 
     event CustomerRegistered(
@@ -28,6 +39,10 @@ contract BidOnAddresses is BaseBidOnAddresses {
     mapping(uint256 => bool) private conditionalTokensMap;
 
     constructor(string memory uri_) BaseBidOnAddresses(uri_) {
+        _registerInterface(
+            BidOnAddresses(0).onERC1155Received.selector ^
+            BidOnAddresses(0).onERC1155BatchReceived.selector
+        );
     }
 
     /// Anyone can register himself.
