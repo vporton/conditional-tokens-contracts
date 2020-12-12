@@ -2,9 +2,9 @@
 pragma solidity ^0.7.1;
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "abdk-libraries-solidity/ABDKMath64x64.sol";
-import { ERC1155WithMappedAddresses } from "restorable-funds/contracts/ERC1155WithMappedAddresses.sol";
+import { IERC1155 } from "./ERC1155/IERC1155.sol";
 import { IERC1155TokenReceiver } from "./ERC1155/IERC1155TokenReceiver.sol";
-import { IERC1155 } from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
+import { ERC1155WithMappedAddressesAndTotals } from "./ERC1155/ERC1155WithMappedAddressesAndTotals.sol";
 
 /// @title Bidding on Ethereum addresses
 /// @author Victor Porton
@@ -18,7 +18,7 @@ import { IERC1155 } from "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 /// - a combination of TOKEN_SUMMARY and collateral address (staked + staked collateral tokens)
 ///
 /// In functions of this contact `condition` is always a customer's original address.
-contract BidOnAddresses is ERC1155WithMappedAddresses, IERC1155TokenReceiver {
+contract BidOnAddresses is ERC1155WithMappedAddressesAndTotals, IERC1155TokenReceiver {
     using ABDKMath64x64 for int128;
     using SafeMath for uint256;
 
@@ -122,12 +122,12 @@ contract BidOnAddresses is ERC1155WithMappedAddresses, IERC1155TokenReceiver {
     mapping(uint256 => bool) private conditionalTokensMap;
     // Total collaterals (separately donated and staked) per marketId and oracleId: collateral => (marketId => (oracleId => total)).
     mapping(uint256 => uint256) private collateralTotalsMap;
-    // If a given conditional was already redeemed.
-    mapping(address => mapping(uint64 => mapping(uint256 => bool))) private redeemActivatedMap; // TODO: hash instead?
     // The user lost the right to transfer conditional tokens: (user => (conditionalToken => bool)).
     mapping(address => mapping(uint256 => bool)) private userUsedRedeemMap;
+    // Mapping (token => (user => amount)) used to calculate withdrawal of collateral amounts.
+    mapping(uint256 => mapping(address => uint256)) private lastCollateralBalanceMap; // TODO: Would getter be useful?
 
-    constructor(string memory uri_) ERC1155WithMappedAddresses(uri_) {
+    constructor(string memory uri_) ERC1155WithMappedAddressesAndTotals(uri_) {
         _registerInterface(
             BidOnAddresses(0).onERC1155Received.selector ^
             BidOnAddresses(0).onERC1155BatchReceived.selector
@@ -274,26 +274,60 @@ contract BidOnAddresses is ERC1155WithMappedAddresses, IERC1155TokenReceiver {
         emit OracleFinished(msg.sender);
     }
 
+    function _calcRewardShare(uint64 oracleId, address condition) private view returns (int128){
+        uint256 numerator = payoutNumeratorsMap[oracleId][condition];
+        uint256 denominator = payoutDenominatorMap[oracleId];
+        return ABDKMath64x64.divu(numerator, denominator);
+    }
+
+    function collateralOwingBase(IERC1155 collateralContractAddress, uint256 collateralTokenId, uint64 marketId, uint64 oracleId, address condition, address user)
+        private view returns (uint donatedCollateralTokenId, uint stakedCollateralTokenId, uint256 donated, uint256 staked)
+    {
+        uint256 conditonalToken = _conditionalTokenId(marketId, condition);
+        uint256 conditonalBalance = balanceOf(user, conditonalToken);
+        uint256 totalConditonalBalance = totalBalanceOf(conditonalToken);
+        donatedCollateralTokenId = _collateralDonatedTokenId(collateralContractAddress, collateralTokenId, marketId, oracleId);
+        uint256 donatedCollateralTotalBalance = totalBalanceOf(donatedCollateralTokenId);
+        stakedCollateralTokenId = _collateralStakedTokenId(collateralContractAddress, collateralTokenId, marketId, oracleId);
+        uint256 stakedCollateralTotalBalance = totalBalanceOf(stakedCollateralTokenId);
+        // Rounded to below for no out-of-funds:
+        int128 marketIdShare = ABDKMath64x64.divu(conditonalBalance, totalConditonalBalance);
+        int128 rewardShare = _calcRewardShare(oracleId, condition);
+        uint256 _newDividendsDonated = donatedCollateralTotalBalance - lastCollateralBalanceMap[donatedCollateralTokenId][user];
+        uint256 _newDividendsStaked = stakedCollateralTotalBalance - lastCollateralBalanceMap[stakedCollateralTokenId][user];
+        int128 multiplier = marketIdShare.mul(rewardShare);
+        donated = multiplier.mulu(_newDividendsDonated);
+        staked = multiplier.mulu(_newDividendsStaked);
+    }
+ 
+    function collateralOwing(IERC1155 collateralContractAddress, uint256 collateralTokenId, uint64 marketId, uint64 oracleId, address condition, address user) external view returns(uint256) {
+        (,, uint256 donated, uint256 staked) = collateralOwingBase(collateralContractAddress, collateralTokenId, marketId, oracleId, condition, user);
+        return donated + staked;
+    }
+
     /// Transfer to `msg.sender` the collateral ERC-20 token (we can't transfer to somebody other, because anybody can transfer).
     /// accordingly to the score of `condition` in the marketId by the oracle.
     /// After this function is called, it becomes impossible to transfer the corresponding conditional token of `msg.sender`
     /// (to prevent its repeated withdraw).
     function withdrawCollateral(IERC1155 collateralContractAddress, uint256 collateralTokenId, uint64 marketId, uint64 oracleId, address condition, bytes calldata data) external {
         require(isOracleFinished(oracleId), "too early"); // to prevent the denominator or the numerators change meantime
-        uint256 collateralBalance = _initialCollateralBalanceOf(collateralContractAddress, collateralTokenId, marketId, oracleId, msg.sender, condition);
         uint256 conditionalTokenId = _conditionalTokenId(marketId, condition);
-        require(!redeemActivatedMap[msg.sender][oracleId][conditionalTokenId], "Already redeemed.");
-        redeemActivatedMap[msg.sender][oracleId][conditionalTokenId] = true;
         userUsedRedeemMap[msg.sender][conditionalTokenId] = true;
-        // _burn(msg.sender, conditionalTokenId, conditionalBalance); // Burning it would break using the same token for multiple outcomes.
-        collateralContractAddress.safeTransferFrom(address(this), msg.sender, collateralTokenId, collateralBalance, data); // last to prevent reentrancy attack
-    }
+        // _burn(msg.sender, conditionalTokenId, conditionalBalance); // Burning it would break using the same token for multiple markets.
+        (uint donatedCollateralTokenId, uint stakedCollateralTokenId, uint256 _owingDonated, uint256 _owingStaked) =
+            collateralOwingBase(collateralContractAddress, collateralTokenId, marketId, oracleId, condition, msg.sender);
 
-    /// Calculate the collateral balance corresponding to the current conditonal token `condition` state and
-    /// current numerators.
-    /// This function can be called before oracle is finished, but that's not recommended.
-    function initialCollateralBalanceOf(IERC1155 collateralContractAddress, uint256 collateralTokenId, uint64 marketId, uint64 oracleId, address user, address condition) external view returns (uint256) {
-        return _initialCollateralBalanceOf(collateralContractAddress, collateralTokenId, marketId, oracleId, user, condition);
+        // Against rounding errors. Not necessary because of rounding down.
+        // if(_owing > balanceOf(address(this), collateralTokenId)) _owing = balanceOf(address(this), collateralTokenId);
+
+        if(_owingDonated != 0) {
+            lastCollateralBalanceMap[donatedCollateralTokenId][msg.sender] = totalBalanceOf(donatedCollateralTokenId);
+        }
+        if(_owingStaked != 0) {
+            lastCollateralBalanceMap[stakedCollateralTokenId][msg.sender] = totalBalanceOf(stakedCollateralTokenId);
+        }
+        // Last to prevent reentrancy attack:
+        collateralContractAddress.safeTransferFrom(address(this), msg.sender, collateralTokenId, _owingDonated + _owingStaked, data);
     }
 
     /// Disallow transfers of conditional tokens after redeem to prevent "gathering" them before redeeming each oracle.
@@ -369,12 +403,8 @@ contract BidOnAddresses is ERC1155WithMappedAddresses, IERC1155TokenReceiver {
         return collateralTotalsMap[hash];
     }
 
-    function isRedeemActivated(address condition, uint64 oracleId, uint256 conditionalTokenId) public view returns (bool) {
-        return redeemActivatedMap[condition][oracleId][conditionalTokenId];
-    }
-
-    function isConditonalLocked(address condition, uint256 conditionalTokenId) public view returns (bool) {
-        return userUsedRedeemMap[condition][conditionalTokenId];
+    function isConditonalLocked(address holder, uint256 conditionalTokenId) public view returns (bool) {
+        return userUsedRedeemMap[holder][conditionalTokenId];
     }
 
     function minFinishTime(uint64 oracleId) public view returns (uint) {
@@ -382,21 +412,6 @@ contract BidOnAddresses is ERC1155WithMappedAddresses, IERC1155TokenReceiver {
     }
 
     // Internal //
-
-    function _initialCollateralBalanceOf(IERC1155 collateralContractAddress, uint256 collateralTokenId, uint64 marketId, uint64 oracleId, address user, address condition) internal view
-        returns (uint256)
-    {
-        uint256 numerator = payoutNumeratorsMap[oracleId][condition];
-        uint256 denominator = payoutDenominatorMap[oracleId];
-        uint256 conditonalBalance = balanceOf(user, _conditionalTokenId(marketId, condition));
-        uint donatedCollateralTokenId = _collateralDonatedTokenId(collateralContractAddress, collateralTokenId, marketId, oracleId);
-        uint stakedCollateralTokenId = _collateralStakedTokenId(collateralContractAddress, collateralTokenId, marketId, oracleId);
-        uint256 collateralTotalBalance = summaryCollateralTotal(donatedCollateralTokenId, stakedCollateralTokenId);
-        // Rounded to below for no out-of-funds:
-        int128 marketIdShare = ABDKMath64x64.divu(conditonalBalance, INITIAL_CUSTOMER_BALANCE);
-        int128 rewardShare = ABDKMath64x64.divu(numerator, denominator);
-        return marketIdShare.mul(rewardShare).mulu(collateralTotalBalance);
-    }
 
     function _conditionalTokenId(uint64 marketId, address condition) private pure returns (uint256) {
         return uint256(keccak256(abi.encodePacked(uint8(TokenKind.TOKEN_CONDITIONAL), marketId, condition)));
