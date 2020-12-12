@@ -359,11 +359,17 @@ abstract contract BaseBidOnAddresses is ERC1155WithMappedAddresses, IERC1155Toke
         return userUsedRedeemMap[condition][conditionalTokenId];
     }
 
-    function marketTotal(address /*condition*/) public virtual view returns (uint256);
-
     function minFinishTime(uint64 oracleId) public view returns (uint) {
         return minFinishTimes[oracleId];
     }
+
+    // Virtual functions //
+
+    function _mintToCustomer(uint256 conditionalTokenId, uint256 amount, bytes calldata data) internal virtual {
+        _mint(msg.sender, conditionalTokenId, amount, data);
+    }
+
+    function marketTotal(address /*condition*/) public virtual view returns (uint256);
 
     // Internal //
 

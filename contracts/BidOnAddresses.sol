@@ -2,8 +2,6 @@
 pragma solidity ^0.7.1;
 import "./BaseBidOnAddresses.sol";
 
-// TODO: Allocate to oracles a portion of the conditional token and/or collateral, rather than the collateral.
-// TODO: Allow to lock staked tokens? (as a separate contract?)
 // TODO: Move to another Ethereum account without a confirmation, using the old account.
 
 // TODO: Token URL setting.
@@ -21,9 +19,8 @@ import "./BaseBidOnAddresses.sol";
 ///
 /// In functions of this contact `condition` is always a customer's original address.
 contract BidOnAddresses is BaseBidOnAddresses {
-    // TODO: IERC1155Views
+    // TODO: IERC1155Views, IERC1155Metadata
     // TODO: Allocate also kX tokens to the DAO.
-
     using ABDKMath64x64 for int128;
     using SafeMath for uint256;
 
@@ -51,7 +48,7 @@ contract BidOnAddresses is BaseBidOnAddresses {
         uint256 conditionalTokenId = _conditionalTokenId(marketId, originalAddress(msg.sender));
         require(!conditionalTokensMap[conditionalTokenId], "customer already registered");
         conditionalTokensMap[conditionalTokenId] = true;
-        _mint(msg.sender, conditionalTokenId, INITIAL_CUSTOMER_BALANCE, data);
+        _mintToCustomer(conditionalTokenId, INITIAL_CUSTOMER_BALANCE, data);
         emit CustomerRegistered(msg.sender, marketId, data);
     }
 
