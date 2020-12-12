@@ -2,8 +2,6 @@
 pragma solidity ^0.7.1;
 import "./BaseBidOnAddresses.sol";
 
-// TODO: Token URL setting.
-
 /// @title Bidding on Ethereum addresses
 /// @author Victor Porton
 /// @notice Not audited, not enough tested.
