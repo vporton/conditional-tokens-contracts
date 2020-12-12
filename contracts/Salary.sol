@@ -2,7 +2,6 @@
 pragma solidity ^0.7.1;
 import "./BaseBidOnAddresses.sol";
 
-// TODO: A mean to check if the salary receiver is dead.
 contract Salary is BaseBidOnAddresses {
     event CustomerRegistered(
         address customer,
@@ -40,7 +39,7 @@ contract Salary is BaseBidOnAddresses {
         require(lastSalaryDate != 0, "You are not registered.");
         uint256 conditionalTokenId = _conditionalTokenId(marketId, originalAddress(msg.sender));
         uint256 amount = (lastSalaryDate - block.timestamp) * 10**18; // one token per second
-        _mint(msg.sender, conditionalTokenId, amount, data);
+        _mintToCustomer(conditionalTokenId, amount, data);
         marketTotals[orig] += amount; // Overflow is impossible.
         lastSalaryDates[orig] = block.timestamp;
         emit SalaryMinted(msg.sender, marketId, amount, data);

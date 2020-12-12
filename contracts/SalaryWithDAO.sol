@@ -3,6 +3,11 @@ pragma solidity ^0.7.1;
 import "./BaseRestorableSalary.sol";
 
 interface OurDAO {
+    /// Revert if the person is dead.
+    /// @param account the current account (not the original account)
+    /// TODO: Maybe better to use original account as the argument?
+    function checkPersonDead(address account) external;
+
     function checkAllowedRestoreAccount(address oldAccount_, address newAccount_) external;
 }
 
@@ -33,6 +38,7 @@ contract SalaryWithDAO is BaseRestorableSalary {
     }
 
     function _mintToCustomer(uint256 conditionalTokenId, uint256 amount, bytes calldata data) internal virtual override {
+        dao.checkPersonDead(msg.sender);
         super._mintToCustomer(conditionalTokenId, amount, data);
         if (daoShare != int128(0).div(1)) { // Save gas.
             _mint(address(dao), conditionalTokenId, daoShare.mulu(amount), data);
@@ -44,7 +50,7 @@ contract SalaryWithDAO is BaseRestorableSalary {
     }
 
     modifier onlyDAO() {
-        require(msg.sender == address(dao)  , "Only DAO can do.");
+        require(msg.sender == address(dao), "Only DAO can do.");
         _;
     }
 }
