@@ -417,11 +417,7 @@ abstract contract BaseBidOnAddresses is ERC1155WithMappedAddresses, IERC1155Toke
             "ERC1155: need operator approval for 3rd party transfers."
         );
 
-        // TODO: duplicateCode
-        address originalFrom = originalAddress(from);
-        _balances[id][originalFrom] = _balances[id][originalFrom].sub(value);
-        address originalTo = originalAddress(to);
-        _balances[id][originalTo] = value.add(_balances[id][originalTo]);
+        _doTransfer(id, from, to, value);
 
         emit TransferSingle(msg.sender, from, to, id, value);
 
@@ -448,16 +444,19 @@ abstract contract BaseBidOnAddresses is ERC1155WithMappedAddresses, IERC1155Toke
             uint256 id = ids[i];
             uint256 value = values[i];
 
-            // TODO: duplicateCode
-            address originalFrom = originalAddress(from);
-            _balances[id][originalFrom] = _balances[id][originalFrom].sub(value);
-            address originalTo = originalAddress(to);
-            _balances[id][originalTo] = value.add(_balances[id][originalTo]);
+            _doTransfer(id, from, to, value);
         }
 
         emit TransferBatch(msg.sender, from, to, ids, values);
 
         _doSafeBatchTransferAcceptanceCheck(msg.sender, from, to, ids, values, data);
+    }
+
+    function _doTransfer(uint256 id, address from, address to, uint256 value) internal {
+        address originalFrom = originalAddress(from);
+        _balances[id][originalFrom] = _balances[id][originalFrom].sub(value);
+        address originalTo = originalAddress(to);
+        _balances[id][originalTo] = value.add(_balances[id][originalTo]);
     }
 
     function _updateNumerator(uint64 oracleId, uint256 numerator, address condition) private {
