@@ -4,6 +4,9 @@ import "./BaseBidOnAddresses.sol";
 
 // TODO: The ability to take ALL the funds from a user's account (see https://github.com/vporton/wrap-tokens)
 
+// TODO: Ability to withdraw the entire balance of the bequestor/staker, when the time comes.
+// TODO: Allow to override the date of allowed withdrawal of bequested funds.
+
 /// @title Bidding on Ethereum addresses
 /// @author Victor Porton
 /// @notice Not audited, not enough tested.
@@ -16,6 +19,8 @@ import "./BaseBidOnAddresses.sol";
 /// - a combination of TOKEN_SUMMARY and collateral address (staked + staked collateral tokens)
 ///
 /// In functions of this contact `condition` is always a customer's original address.
+///
+/// We receive funds in ERC-1155, see also https://github.com/vporton/wrap-tokens
 contract BidOnAddresses is BaseBidOnAddresses {
     using ABDKMath64x64 for int128;
     using SafeMath for uint256;

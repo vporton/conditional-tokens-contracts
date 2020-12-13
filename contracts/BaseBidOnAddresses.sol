@@ -341,6 +341,7 @@ abstract contract BaseBidOnAddresses is ERC1155WithMappedAddressesAndTotals, IER
         _baseSafeBatchTransferFrom(from, to, ids, values, data);
     }
 
+    /// Don't send funds to us directy (they will be lost!), use smart contract API.
     function onERC1155Received(address, address, uint256, uint256, bytes calldata) public pure override returns(bytes4) {
         return this.onERC1155Received.selector; // to accept transfers
     }
