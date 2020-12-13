@@ -6,6 +6,9 @@ import { IERC1155 } from "./ERC1155/IERC1155.sol";
 import { IERC1155TokenReceiver } from "./ERC1155/IERC1155TokenReceiver.sol";
 import { ERC1155WithMappedAddressesAndTotals } from "./ERC1155/ERC1155WithMappedAddressesAndTotals.sol";
 
+// TODO: Ability to withdraw the entire balance of the bequestor/staker, when the time comes.
+// TODO: Allow to override the date of allowed withdrawal of bequested funds.
+
 /// @title Bidding on Ethereum addresses
 /// @author Victor Porton
 /// @notice Not audited, not enough tested.
@@ -18,6 +21,8 @@ import { ERC1155WithMappedAddressesAndTotals } from "./ERC1155/ERC1155WithMapped
 /// - a combination of TOKEN_SUMMARY and collateral address (staked + staked collateral tokens)
 ///
 /// In functions of this contact `condition` is always a customer's original address.
+///
+/// We receive funds in ERC-1155, see also https://github.com/vporton/wrap-tokens
 contract BidOnAddresses is ERC1155WithMappedAddressesAndTotals, IERC1155TokenReceiver {
     using ABDKMath64x64 for int128;
     using SafeMath for uint256;
@@ -360,6 +365,7 @@ contract BidOnAddresses is ERC1155WithMappedAddressesAndTotals, IERC1155TokenRec
         _baseSafeBatchTransferFrom(from, to, ids, values, data);
     }
 
+    /// Don't send funds to us directy (they will be lost!), use smart contract API.
     function onERC1155Received(address, address, uint256, uint256, bytes calldata) public pure override returns(bytes4) {
         return this.onERC1155Received.selector; // to accept transfers
     }
