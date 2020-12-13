@@ -2,6 +2,8 @@
 pragma solidity ^0.7.1;
 import "./BaseBidOnAddresses.sol";
 
+// TODO: The ability to take ALL the funds from a user's account (see https://github.com/vporton/wrap-tokens)
+
 /// @title Bidding on Ethereum addresses
 /// @author Victor Porton
 /// @notice Not audited, not enough tested.
