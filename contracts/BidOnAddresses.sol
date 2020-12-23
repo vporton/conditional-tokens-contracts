@@ -2,12 +2,6 @@
 pragma solidity ^0.7.1;
 import "./BaseBidOnAddresses.sol";
 
-// TODO: The ability to take ALL the funds from a user's account (see https://github.com/vporton/wrap-tokens)
-
-// TODO: Extract bequesting capabilities into a separate contract.
-// TODO: Allow to override the date of allowed withdrawal of bequested funds (multiple dates per single bequestor?)
-// TODO: Also the ability to transfer bequested (and donated?) funds to other market/oracle (in conjunction with changing the date)?
-
 /// @title Bidding on Ethereum addresses
 /// @author Victor Porton
 /// @notice Not audited, not enough tested.
@@ -16,8 +10,8 @@ import "./BaseBidOnAddresses.sol";
 ///
 /// We have three kinds of ERC-1155 token ID
 /// - a combination of market ID, collateral address, and customer address (conditional tokens)
-/// - a combination of TOKEN_STAKED and collateral address (bequested collateral tokens)
-/// - a combination of TOKEN_SUMMARY and collateral address (bequested + bequested collateral tokens)
+/// - a combination of TOKEN_DONATED and collateral address (donated collateral tokens)
+/// - a combination of TOKEN_BEQUESTED and collateral address (bequested collateral tokens)
 ///
 /// In functions of this contact `condition` is always a customer's original address.
 ///
@@ -34,7 +28,7 @@ contract BidOnAddresses is BaseBidOnAddresses {
         bytes data
     );
 
-    // All conditional tokens,
+    // All conditional tokens.
     mapping(uint256 => bool) private conditionalTokensMap;
 
     constructor(string memory uri_) BaseBidOnAddresses(uri_) {

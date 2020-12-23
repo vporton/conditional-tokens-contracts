@@ -22,7 +22,7 @@ abstract contract BaseBidOnAddresses is ERC1155WithMappedAddressesAndTotals, IER
     using ABDKMath64x64 for int128;
     using SafeMath for uint256;
 
-    enum TokenKind { TOKEN_CONDITIONAL, TOKEN_DONATED, TOKEN_STAKED }
+    enum TokenKind { TOKEN_CONDITIONAL, TOKEN_DONATED, TOKEN_BEQUESTED }
 
     event MarketCreated(address creator, uint64 marketId);
 
@@ -110,14 +110,12 @@ abstract contract BaseBidOnAddresses is ERC1155WithMappedAddressesAndTotals, IER
     mapping(uint64 => mapping(address => uint256)) private payoutNumeratorsMap;
     // Mapping (marketId => denominator) for payout denominators.
     mapping(uint64 => uint) private payoutDenominatorMap;
-    // Total collaterals (separately donated and bequested) per marketId and oracleId: collateral => (marketId => (oracleId => total)).
-    mapping(uint256 => uint256) private collateralTotalsMap;
     // The user lost the right to transfer conditional tokens: (user => (conditionalToken => bool)).
     mapping(address => mapping(uint256 => bool)) private userUsedRedeemMap;
     // Mapping (token => (user => amount)) used to calculate withdrawal of collateral amounts.
     mapping(uint256 => mapping(address => uint256)) private lastCollateralBalanceMap; // TODO: Would getter be useful?
-    /// Accounts from which anyone can donate after the time come.
-    mapping(address => bool) public bequestedAccounts;
+    /// Times of bequest of all funds from address (zero is no bequest).
+    mapping(address => uint) public bequestTimes;
 
     constructor(string memory uri_) ERC1155WithMappedAddressesAndTotals(uri_) {
         _registerInterface(
@@ -152,14 +150,38 @@ abstract contract BaseBidOnAddresses is ERC1155WithMappedAddressesAndTotals, IER
         minFinishTimes[oracleId] = time;
     }
 
-    function approveUnlimitedBequest(bool _approved) public {
-        bequestedAccounts[msg.sender] = _approved;
+    /// Bequest either by calling this function and also approving transfers by this contract
+    /// or by `bequestCollateral()`.
+    /// Zero means disallowed.
+    function setBequestTime(uint _time) public {
+        bequestTimes[msg.sender] = _time;
     }
 
     /// Donate funds in a ERC1155 token.
     /// First need to approve the contract to spend the token.
     /// Not recommended to donate after any oracle has finished, because funds may be (partially) lost.
+    /// Bequestor's funds after the bequest time can be donated by anyone.
     function donate(
+        IERC1155 collateralContractAddress,
+        uint256 collateralTokenId,
+        uint64 marketId,
+        uint64 oracleId,
+        uint256 amount,
+        address from,
+        address to,
+        bytes calldata data) external _canTakeBequest(from)
+    {
+        uint donatedCollateralTokenId = _collateralDonatedTokenId(collateralContractAddress, collateralTokenId, marketId, oracleId);
+        _mint(to, donatedCollateralTokenId, amount, data);
+        emit DonateCollateral(collateralContractAddress, collateralTokenId, from, amount, to, data);
+        collateralContractAddress.safeTransferFrom(from, address(this), collateralTokenId, amount, data); // last against reentrancy attack
+    }
+
+    /// Bequest funds in a ERC1155 token.
+    /// First need to approve the contract to spend the token.
+    /// The bequest is lost if either: the prediction period ends or the bequestor loses his private key (e.g. dies).
+    /// Not recommended to bequest after the oracle has finished, because funds may be (partially) lost (you could not unbequest).
+    function bequestCollateral(
         IERC1155 collateralContractAddress,
         uint256 collateralTokenId,
         uint64 marketId,
@@ -168,33 +190,10 @@ abstract contract BaseBidOnAddresses is ERC1155WithMappedAddressesAndTotals, IER
         address to,
         bytes calldata data) external
     {
-        _mint(to, _collateralDonatedTokenId(collateralContractAddress, collateralTokenId, marketId, oracleId), amount, data);
-        uint donatedCollateralTokenId = _collateralDonatedTokenId(collateralContractAddress, collateralTokenId, marketId, oracleId);
-        collateralTotalsMap[donatedCollateralTokenId] = collateralTotalsMap[donatedCollateralTokenId].add(amount);
-        emit DonateCollateral(collateralContractAddress, collateralTokenId, msg.sender, amount, to, data);
-        collateralContractAddress.safeTransferFrom(msg.sender, address(this), collateralTokenId, amount, data); // last against reentrancy attack
-    }
-
-    /// Bequest funds in a ERC1155 token.
-    /// First need to approve the contract to spend the token.
-    /// The bequest is lost if either: the prediction period ends or the bequestor loses his private key (e.g. dies).
-    /// Not recommended to bequest after the oracle has finished, because funds may be (partially) lost (you could not unbequest).
-    /// TODO: Rename to `bequestCollateral`.
-    function bequestCollateral(
-        IERC1155 collateralContractAddress,
-        uint256 collateralTokenId,
-        uint64 marketId,
-        uint64 oracleId,
-        uint256 amount,
-        address from,
-        address to,
-        bytes calldata data) external _isApproved(from, oracleId)
-    {
-        _mint(to, _collateralBequestedTokenId(collateralContractAddress, collateralTokenId, marketId, oracleId), amount, data);
         uint bequestedCollateralTokenId = _collateralBequestedTokenId(collateralContractAddress, collateralTokenId, marketId, oracleId);
-        collateralTotalsMap[bequestedCollateralTokenId] = collateralTotalsMap[bequestedCollateralTokenId].add(amount);
+        _mint(to, bequestedCollateralTokenId, amount, data);
         emit BequestCollateral(collateralContractAddress, collateralTokenId, msg.sender, amount, to, data);
-        collateralContractAddress.safeTransferFrom(from, address(this), collateralTokenId, amount, data); // last against reentrancy attack
+        collateralContractAddress.safeTransferFrom(msg.sender, address(this), collateralTokenId, amount, data); // last against reentrancy attack
     }
 
     /// If the oracle has not yet finished you can take funds back.
@@ -209,7 +208,6 @@ abstract contract BaseBidOnAddresses is ERC1155WithMappedAddressesAndTotals, IER
     {
         require(!isOracleFinished(oracleId), "too late");
         uint bequestedCollateralTokenId = _collateralBequestedTokenId(collateralContractAddress, collateralTokenId, marketId, oracleId);
-        collateralTotalsMap[bequestedCollateralTokenId] = collateralTotalsMap[bequestedCollateralTokenId].sub(amount);
         collateralContractAddress.safeTransferFrom(address(this), to, bequestedCollateralTokenId, amount, data);
         emit TakeBackCollateral(collateralContractAddress, collateralTokenId, msg.sender, amount, to);
     }
@@ -223,16 +221,14 @@ abstract contract BaseBidOnAddresses is ERC1155WithMappedAddressesAndTotals, IER
         uint256 amount,
         address from,
         address to,
-        bytes calldata data) external _isApproved(from, oracleId)
+        bytes calldata data) external _canTakeBequest(from)
     {
         // Subtract from bequested:
         uint bequestedCollateralTokenId = _collateralBequestedTokenId(collateralContractAddress, collateralTokenId, marketId, oracleId);
         _burn(from, bequestedCollateralTokenId, amount);
-        collateralTotalsMap[bequestedCollateralTokenId] = collateralTotalsMap[bequestedCollateralTokenId].sub(amount);
         // Add to donated:
         uint donatedCollateralTokenId = _collateralDonatedTokenId(collateralContractAddress, collateralTokenId, marketId, oracleId);
         _mint(to, donatedCollateralTokenId, amount, data);
-        collateralTotalsMap[donatedCollateralTokenId] = collateralTotalsMap[donatedCollateralTokenId].add(amount);
         emit ConvertBequestedToDonated(collateralContractAddress, collateralTokenId, from, amount, to, data);
     }
 
@@ -365,7 +361,7 @@ abstract contract BaseBidOnAddresses is ERC1155WithMappedAddressesAndTotals, IER
     }
 
     function summaryCollateralTotal(uint256 donatedCollateralTokenId, uint256 bequestedCollateralTokenId) public view returns (uint256) {
-        return collateralTotalsMap[donatedCollateralTokenId] + collateralTotalsMap[bequestedCollateralTokenId];
+        return totalBalanceOf(donatedCollateralTokenId) + totalBalanceOf(bequestedCollateralTokenId);
     }
 
     function oracleOwner(uint64 oracleId) public view returns (address) {
@@ -382,11 +378,6 @@ abstract contract BaseBidOnAddresses is ERC1155WithMappedAddressesAndTotals, IER
 
     function payoutDenominator(uint64 marketId) public view returns (uint256) {
         return payoutDenominatorMap[marketId];
-    }
-
-    /// @param hash should be a result of `_collateralBequestedTokenId()`.
-    function collateralTotal(uint256 hash) public view returns (uint256) {
-        return collateralTotalsMap[hash];
     }
 
     function isConditonalLocked(address condition, uint256 conditionalTokenId) public view returns (bool) {
@@ -414,7 +405,7 @@ abstract contract BaseBidOnAddresses is ERC1155WithMappedAddressesAndTotals, IER
     }
 
     function _collateralBequestedTokenId(IERC1155 collateralContractAddress, uint256 collateralTokenId, uint64 marketId, uint64 oracleId) internal pure returns (uint256) {
-        return uint256(keccak256(abi.encodePacked(uint8(TokenKind.TOKEN_STAKED), collateralContractAddress, collateralTokenId, marketId, oracleId)));
+        return uint256(keccak256(abi.encodePacked(uint8(TokenKind.TOKEN_BEQUESTED), collateralContractAddress, collateralTokenId, marketId, oracleId)));
     }
 
     function _checkTransferAllowed(uint256 id, address from) internal view {
@@ -488,8 +479,8 @@ abstract contract BaseBidOnAddresses is ERC1155WithMappedAddressesAndTotals, IER
         _;
     }
 
-    modifier _isApproved(address from, uint64 oracleId) {
-        require(from == msg.sender || (bequestedAccounts[from] && isOracleFinished(oracleId)),
+    modifier _canTakeBequest(address from) {
+        require(from == msg.sender || (block.timestamp >= bequestTimes[from]),
                 "Putting funds not approved.");
         _;
     }
