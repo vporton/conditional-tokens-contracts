@@ -1,15 +1,7 @@
 // SPDX-License-Identifier: LGPL-3.0-or-later
 pragma solidity ^0.7.1;
 import "./BaseRestorableSalary.sol";
-
-interface DAOInterface {
-    /// Revert if the person is dead.
-    /// @param account the current account (not the original account)
-    /// TODO: Maybe better to use original account as the argument?
-    function checkPersonDead(address account) external;
-
-    function checkAllowedRestoreAccount(address oldAccount_, address newAccount_) external;
-}
+import "./DAOInterface.sol";
 
 contract SalaryWithDAO is BaseRestorableSalary {
     using ABDKMath64x64 for int128;
