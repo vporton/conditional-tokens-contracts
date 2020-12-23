@@ -204,7 +204,7 @@ contract BidOnAddresses is ERC1155WithMappedAddressesAndTotals, IERC1155TokenRec
         uint256 amount,
         address from,
         address to,
-        bytes calldata data) external isApproved(from, oracleId)
+        bytes calldata data) external _isApproved(from, oracleId)
     {
         _mint(to, _collateralStakedTokenId(collateralContractAddress, collateralTokenId, marketId, oracleId), amount, data);
         uint stakedCollateralTokenId = _collateralStakedTokenId(collateralContractAddress, collateralTokenId, marketId, oracleId);
@@ -239,7 +239,7 @@ contract BidOnAddresses is ERC1155WithMappedAddressesAndTotals, IERC1155TokenRec
         uint256 amount,
         address from,
         address to,
-        bytes calldata data) external isApproved(from, oracleId)
+        bytes calldata data) external _isApproved(from, oracleId)
     {
         // Subtract from staked:
         uint stakedCollateralTokenId = _collateralStakedTokenId(collateralContractAddress, collateralTokenId, marketId, oracleId);
@@ -518,7 +518,7 @@ contract BidOnAddresses is ERC1155WithMappedAddressesAndTotals, IERC1155TokenRec
         _;
     }
 
-    modifier isApproved(address from, uint64 oracleId) {
+    modifier _isApproved(address from, uint64 oracleId) {
         require(from == msg.sender || (bequestedAccounts[from] && isOracleFinished(oracleId)),
                 "Putting funds not approved.");
         _;
