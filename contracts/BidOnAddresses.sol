@@ -4,8 +4,9 @@ import "./BaseBidOnAddresses.sol";
 
 // TODO: The ability to take ALL the funds from a user's account (see https://github.com/vporton/wrap-tokens)
 
-// TODO: Ability to withdraw the entire balance of the bequestor/staker, when the time comes.
-// TODO: Allow to override the date of allowed withdrawal of bequested funds.
+// TODO: Extract bequesting capabilities into a separate contract.
+// TODO: Allow to override the date of allowed withdrawal of bequested funds (multiple dates per single staker?)
+// TODO: Also the ability to transfer staked (and donated?) funds to other market/oracle (in conjunction with changing the date)?
 
 /// @title Bidding on Ethereum addresses
 /// @author Victor Porton

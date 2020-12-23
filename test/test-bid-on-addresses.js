@@ -205,6 +205,7 @@ contract("BidOnAddresses", function(accounts) {
               oracleIdInfo.oracleId,
               staker.amount,
               staker.account,
+              staker.account,
               [],
               { from: staker.account }
             );
@@ -345,6 +346,7 @@ contract("BidOnAddresses", function(accounts) {
       // TODO: Send money to registered and unregistered customers.
       // TODO: reportNumerator() called second time for the same customer.
       // TODO: Test all functions and all variants.
+      // TODO: Donating/staking from other's approved account.
     });
   });
 });

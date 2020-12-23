@@ -116,7 +116,8 @@ abstract contract BaseBidOnAddresses is ERC1155WithMappedAddressesAndTotals, IER
     mapping(address => mapping(uint256 => bool)) private userUsedRedeemMap;
     // Mapping (token => (user => amount)) used to calculate withdrawal of collateral amounts.
     mapping(uint256 => mapping(address => uint256)) private lastCollateralBalanceMap; // TODO: Would getter be useful?
-
+    /// Accounts from which anyone can donate after the time come.
+    mapping(address => bool) public bequestedAccounts;
 
     constructor(string memory uri_) ERC1155WithMappedAddressesAndTotals(uri_) {
         _registerInterface(
@@ -151,6 +152,10 @@ abstract contract BaseBidOnAddresses is ERC1155WithMappedAddressesAndTotals, IER
         minFinishTimes[oracleId] = time;
     }
 
+    function approveUnlimitedBequest(bool _approved) public {
+        bequestedAccounts[msg.sender] = _approved;
+    }
+
     /// Donate funds in a ERC1155 token.
     /// First need to approve the contract to spend the token.
     /// Not recommended to donate after any oracle has finished, because funds may be (partially) lost.
@@ -174,20 +179,22 @@ abstract contract BaseBidOnAddresses is ERC1155WithMappedAddressesAndTotals, IER
     /// First need to approve the contract to spend the token.
     /// The stake is lost if either: the prediction period ends or the staker loses his private key (e.g. dies).
     /// Not recommended to stake after the oracle has finished, because funds may be (partially) lost (you could not unstake).
+    /// TODO: Rename to `bequestCollateral`.
     function stakeCollateral(
         IERC1155 collateralContractAddress,
         uint256 collateralTokenId,
         uint64 marketId,
         uint64 oracleId,
         uint256 amount,
+        address from,
         address to,
-        bytes calldata data) external
+        bytes calldata data) external _isApproved(from, oracleId)
     {
         _mint(to, _collateralStakedTokenId(collateralContractAddress, collateralTokenId, marketId, oracleId), amount, data);
         uint stakedCollateralTokenId = _collateralStakedTokenId(collateralContractAddress, collateralTokenId, marketId, oracleId);
         collateralTotalsMap[stakedCollateralTokenId] = collateralTotalsMap[stakedCollateralTokenId].add(amount);
         emit StakeCollateral(collateralContractAddress, collateralTokenId, msg.sender, amount, to, data);
-        collateralContractAddress.safeTransferFrom(msg.sender, address(this), collateralTokenId, amount, data); // last against reentrancy attack
+        collateralContractAddress.safeTransferFrom(from, address(this), collateralTokenId, amount, data); // last against reentrancy attack
     }
 
     /// If the oracle has not yet finished you can take funds back.
@@ -214,18 +221,19 @@ abstract contract BaseBidOnAddresses is ERC1155WithMappedAddressesAndTotals, IER
         uint64 marketId,
         uint64 oracleId,
         uint256 amount,
+        address from,
         address to,
-        bytes calldata data) external
+        bytes calldata data) external _isApproved(from, oracleId)
     {
         // Subtract from staked:
         uint stakedCollateralTokenId = _collateralStakedTokenId(collateralContractAddress, collateralTokenId, marketId, oracleId);
-        _burn(msg.sender, stakedCollateralTokenId, amount);
+        _burn(from, stakedCollateralTokenId, amount);
         collateralTotalsMap[stakedCollateralTokenId] = collateralTotalsMap[stakedCollateralTokenId].sub(amount);
         // Add to donated:
         uint donatedCollateralTokenId = _collateralDonatedTokenId(collateralContractAddress, collateralTokenId, marketId, oracleId);
         _mint(to, donatedCollateralTokenId, amount, data);
         collateralTotalsMap[donatedCollateralTokenId] = collateralTotalsMap[donatedCollateralTokenId].add(amount);
-        emit ConvertStakedToDonated(collateralContractAddress, collateralTokenId, msg.sender, amount, to, data);
+        emit ConvertStakedToDonated(collateralContractAddress, collateralTokenId, from, amount, to, data);
     }
 
     /// @dev Called by the oracle owner for reporting results of conditions.
@@ -477,6 +485,12 @@ abstract contract BaseBidOnAddresses is ERC1155WithMappedAddressesAndTotals, IER
 
     modifier _isOracle(uint64 oracleId) {
         require(oracleOwnersMap[oracleId] == msg.sender, "Not the oracle owner.");
+        _;
+    }
+
+    modifier _isApproved(address from, uint64 oracleId) {
+        require(from == msg.sender || (bequestedAccounts[from] && isOracleFinished(oracleId)),
+                "Putting funds not approved.");
         _;
     }
 }
