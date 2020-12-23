@@ -17,8 +17,8 @@ contract("BidOnAddresses", function(accounts) {
     customer2,
     donor1,
     donor2,
-    staker1,
-    staker2
+    bequestor1,
+    bequestor2
   ] = accounts;
 
   beforeEach("initiate token contracts", async function() {
@@ -40,13 +40,13 @@ contract("BidOnAddresses", function(accounts) {
       []
     );
     this.collateralContract.mint(
-      staker1,
+      bequestor1,
       this.collateralTokenId,
       "1000000000000000000000",
       []
     );
     this.collateralContract.mint(
-      staker2,
+      bequestor2,
       this.collateralTokenId,
       "1000000000000000000000",
       []
@@ -125,9 +125,9 @@ contract("BidOnAddresses", function(accounts) {
               { account: donor1, amount: toBN("10000000000") },
               { account: donor2, amount: toBN("1000000000000") }
             ],
-            stakers: [
-              { account: staker1, amount: toBN("20000000000") },
-              { account: staker2, amount: toBN("2000000000000") }
+            bequestors: [
+              { account: bequestor1, amount: toBN("20000000000") },
+              { account: bequestor2, amount: toBN("2000000000000") }
             ],
             customers: [{ account: 0 }, { account: 1 }]
           },
@@ -138,9 +138,9 @@ contract("BidOnAddresses", function(accounts) {
               { account: donor1, amount: toBN("20000000000") },
               { account: donor2, amount: toBN("2000000000000") }
             ],
-            stakers: [
-              { account: staker1, amount: toBN("30000000000") },
-              { account: staker2, amount: toBN("4000000000000") }
+            bequestors: [
+              { account: bequestor1, amount: toBN("30000000000") },
+              { account: bequestor2, amount: toBN("4000000000000") }
             ],
             customers: [{ account: 0 }, { account: 1 }]
           },
@@ -151,9 +151,9 @@ contract("BidOnAddresses", function(accounts) {
               { account: donor1, amount: toBN("50000000000") },
               { account: donor2, amount: toBN("5000000000000") }
             ],
-            stakers: [
-              { account: staker1, amount: toBN("60000000000") },
-              { account: staker2, amount: toBN("6000000000000") }
+            bequestors: [
+              { account: bequestor1, amount: toBN("60000000000") },
+              { account: bequestor2, amount: toBN("6000000000000") }
             ],
             customers: [{ account: 0 }, { account: 1 }]
           },
@@ -164,9 +164,9 @@ contract("BidOnAddresses", function(accounts) {
               { account: donor1, amount: toBN("70000000000") },
               { account: donor2, amount: toBN("7000000000000") }
             ],
-            stakers: [
-              { account: staker1, amount: toBN("80000000000") },
-              { account: staker2, amount: toBN("9000000000000") }
+            bequestors: [
+              { account: bequestor1, amount: toBN("80000000000") },
+              { account: bequestor2, amount: toBN("9000000000000") }
             ],
             customers: [{ account: 0 }, { account: 1 }]
           }
@@ -191,23 +191,23 @@ contract("BidOnAddresses", function(accounts) {
               { from: donor.account }
             );
           }
-          for (let staker of product.stakers) {
+          for (let bequestor of product.bequestors) {
             await this.collateralContract.setApprovalForAll(
               this.conditionalTokens.address,
               true,
-              { from: staker.account }
+              { from: bequestor.account }
             );
             const oracleIdInfo = oracleIdsInfo[product.oracleId];
-            await this.conditionalTokens.stakeCollateral(
+            await this.conditionalTokens.bequestCollateral(
               this.collateralContract.address,
               this.collateralTokenId,
               product.marketId,
               oracleIdInfo.oracleId,
-              staker.amount,
-              staker.account,
-              staker.account,
+              bequestor.amount,
+              bequestor.account,
+              bequestor.account,
               [],
-              { from: staker.account }
+              { from: bequestor.account }
             );
           }
 
@@ -246,8 +246,8 @@ contract("BidOnAddresses", function(accounts) {
           for (let donor of product.donors) {
             totalCollateral = totalCollateral.add(donor.amount);
           }
-          for (let staker of product.stakers) {
-            totalCollateral = totalCollateral.add(staker.amount);
+          for (let bequestor of product.bequestors) {
+            totalCollateral = totalCollateral.add(bequestor.amount);
           }
           let denominator = toBN("0");
           for (let n of oracleIdInfo.numerators) {
