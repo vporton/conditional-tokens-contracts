@@ -2,7 +2,7 @@
 pragma solidity ^0.7.1;
 import "./BaseRestorableSalary.sol";
 
-interface DaoPlugin {
+interface DAOInterface {
     /// Revert if the person is dead.
     /// @param account the current account (not the original account)
     /// TODO: Maybe better to use original account as the argument?
@@ -14,15 +14,15 @@ interface DaoPlugin {
 contract SalaryWithDAO is BaseRestorableSalary {
     using ABDKMath64x64 for int128;
 
-    DaoPlugin public daoPlugin;
+    DAOInterface public daoPlugin;
 
     int128 public daoShare = int128(0).div(1); // zero by default
 
-    constructor(DaoPlugin _daoPlugin, string memory uri_) BaseRestorableSalary(uri_) {
+    constructor(DAOInterface _daoPlugin, string memory uri_) BaseRestorableSalary(uri_) {
         daoPlugin = _daoPlugin;
     }
 
-    function setDAO(DaoPlugin _daoPlugin) public onlyDAO {
+    function setDAO(DAOInterface _daoPlugin) public onlyDAO {
         daoPlugin = _daoPlugin;
     }
 
