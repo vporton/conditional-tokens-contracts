@@ -181,7 +181,7 @@ contract BidOnAddresses is ERC1155WithMappedAddressesAndTotals, IERC1155TokenRec
         uint256 amount,
         address from,
         address to,
-        bytes calldata data) external _canTakeBequest(from)
+        bytes calldata data) external
     {
         uint donatedCollateralTokenId = _collateralDonatedTokenId(collateralContractAddress, collateralTokenId, marketId, oracleId);
         _mint(to, donatedCollateralTokenId, amount, data);
@@ -208,7 +208,6 @@ contract BidOnAddresses is ERC1155WithMappedAddressesAndTotals, IERC1155TokenRec
         collateralContractAddress.safeTransferFrom(msg.sender, address(this), collateralTokenId, amount, data); // last against reentrancy attack
     }
 
-    /// If the oracle has not yet finished you can take funds back.
     function takeBequestBack(
         IERC1155 collateralContractAddress,
         uint256 collateralTokenId,
@@ -216,9 +215,8 @@ contract BidOnAddresses is ERC1155WithMappedAddressesAndTotals, IERC1155TokenRec
         uint64 oracleId,
         uint256 amount,
         address to,
-        bytes calldata data) external
+        bytes calldata data) external _canTakeBequest(msg.sender)
     {
-        require(!isOracleFinished(oracleId), "too late");
         uint bequestedCollateralTokenId = _collateralBequestedTokenId(collateralContractAddress, collateralTokenId, marketId, oracleId);
         collateralContractAddress.safeTransferFrom(address(this), to, bequestedCollateralTokenId, amount, data);
         emit TakeBackCollateral(collateralContractAddress, collateralTokenId, msg.sender, amount, to);
@@ -231,17 +229,16 @@ contract BidOnAddresses is ERC1155WithMappedAddressesAndTotals, IERC1155TokenRec
         uint64 marketId,
         uint64 oracleId,
         uint256 amount,
-        address from,
         address to,
-        bytes calldata data) external _canTakeBequest(from)
+        bytes calldata data) external
     {
         // Subtract from bequested:
         uint bequestedCollateralTokenId = _collateralBequestedTokenId(collateralContractAddress, collateralTokenId, marketId, oracleId);
-        _burn(from, bequestedCollateralTokenId, amount);
+        _burn(msg.sender, bequestedCollateralTokenId, amount);
         // Add to donated:
         uint donatedCollateralTokenId = _collateralDonatedTokenId(collateralContractAddress, collateralTokenId, marketId, oracleId);
         _mint(to, donatedCollateralTokenId, amount, data);
-        emit ConvertBequestedToDonated(collateralContractAddress, collateralTokenId, from, amount, to, data);
+        emit ConvertBequestedToDonated(collateralContractAddress, collateralTokenId, msg.sender, amount, to, data);
     }
 
     /// Anyone can register himself.
@@ -506,7 +503,7 @@ contract BidOnAddresses is ERC1155WithMappedAddressesAndTotals, IERC1155TokenRec
     }
 
     modifier _canTakeBequest(address from) {
-        require(from == msg.sender || (block.timestamp >= bequestTimes[from]),
+        require(from == msg.sender || (block.timestamp < bequestTimes[from]),
                 "Putting funds not approved.");
         _;
     }
