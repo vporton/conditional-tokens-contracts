@@ -114,6 +114,8 @@ contract BidOnAddresses is ERC1155WithTotals, IERC1155TokenReceiver {
     mapping(uint64 => address) private oracleOwnersMap;
     /// Mapping (oracleId => time) the least allowed time of oracles to finish.
     mapping(uint64 => uint) private minFinishTimes;
+    /// Mapping (oracleId => time) the max time for first withdrawal.
+    mapping(uint64 => uint) private gracePeriodEnds;
     /// Whether an oracle finished its work.
     mapping(uint64 => bool) private oracleFinishedMap;
     /// Mapping (marketId => (customer => numerator)) for payout numerators.
@@ -157,6 +159,7 @@ contract BidOnAddresses is ERC1155WithTotals, IERC1155TokenReceiver {
         emit OracleOwnerChanged(newOracleOwner, oracleId);
     }
 
+    // FIXME: Also for gracePeriodEnds.
     function updateMinFinishTime(uint64 oracleId, uint time) public _isOracle(oracleId) {
         require(time >= minFinishTimes[oracleId], "Can't break trust of bequestors.");
         minFinishTimes[oracleId] = time;
@@ -410,6 +413,10 @@ contract BidOnAddresses is ERC1155WithTotals, IERC1155TokenReceiver {
 
     function minFinishTime(uint64 oracleId) public view returns (uint) {
         return minFinishTimes[oracleId];
+    }
+
+    function gracePeriodEnd(uint64 oracleId) public view returns (uint) {
+        return gracePeriodEnds[oracleId];
     }
 
     // Internal //
